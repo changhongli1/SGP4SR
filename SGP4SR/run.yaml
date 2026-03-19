@@ -1,0 +1,22 @@
+data_path: 'dataset/'
+benchmark_filename: [ train, valid, test ]
+alias_of_item_id: [ item_id_list ]
+load_col:
+  inter: [ user_id, item_id_list, item_id ]
+neg_sampling: ~
+transform: ~
+
+topk: [ 5, 10, 20, 50 ]
+metrics: [ Recall, NDCG ]
+valid_metric: Recall@5
+eval_batch_size: 1024
+train_batch_size: 256
+stopping_step: 10
+
+gpu_id: '0'
+log_prefix: ''
+log_suffix: ''
+
+interest_ratio: 0.5
+# - for DPC-KNN only
+knn_local_ratio: 0.1
