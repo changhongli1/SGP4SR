@@ -51,19 +51,6 @@ class SGPDataset(SequentialDataset):
             if token == '[PAD]':
                 continue
         self.uid2id[int(token)] = i
-
-    def perturb_matrix(self, matrix, percentage=0.6, seed=1111):
-        if seed is not None:
-            np.random.seed(seed)
-        assert 0 <= percentage <= 1, "percentage 必须在 0 到 1 之间"
-        num_rows = matrix.shape[0]
-        num_select = int(num_rows * percentage)
-        selected_indices = np.random.choice(num_rows, num_select, replace=False)
-        for idx in selected_indices:
-            available_indices = np.delete(np.arange(num_rows), idx)
-            new_idx = np.random.choice(available_indices)
-            matrix[idx] = matrix[new_idx]
-        return matrix
     
     def load_text_embedding(self):
         feat_path = osp.join(self.config['data_path'], f'{self.dataset_name}.{self.text_suffix}')
