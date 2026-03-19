@@ -36,45 +36,41 @@ class SGP(SequentialRecommender):
     def __init__(self, config, dataset, co_data, co_lens):
         super(SGP, self).__init__(config, dataset)
         
-        self.co_seq = F.normalize(self.get_co(co_data,co_lens), dim=1).to(self.device)
-        self.pos_emb = torch.nn.Embedding(self.max_seq_length, 300) # TO IMPROVE
-        self.emb_dropout = torch.nn.Dropout(p=0.5)
-        self.last_layernorm = torch.nn.LayerNorm(300, eps=1e-8)
         self.hidden_size = config['hidden_size']  # same as embedding_size
-        self.kk = 50
-        self.kmeans = MiniBatchKMeans(n_clusters=self.kk, init_size=1024, batch_size=1024, random_state=100)
+        self.co_seq = F.normalize(self.get_co(co_data,co_lens), dim=1).to(self.device)
+        self.pos_emb = torch.nn.Embedding(self.max_seq_length, self.hidden_size) # TO IMPROVE
+        self.emb_dropout = torch.nn.Dropout(p=config['hidden_dropout_prob'])
+        self.last_layernorm = torch.nn.LayerNorm(self.hidden_size, eps=1e-8)
+        self.means_k = config['means_k']
+        self.knn_k = config['knn_k']
+        self.bal = config['bal']
+        self.miu_c = config['miu_c']
+        self.miu_m = config['miu_m']
+        self.mb = config['mb']
+        self.kmeans = MiniBatchKMeans(n_clusters=self.means_k, init_size=1024, batch_size=1024, random_state=100)
         self.initializer_range = config['initializer_range']
         self.loss_type = config['loss_type']
         self.item_embedding = torch.nn.Embedding(self.n_items, self.hidden_size, padding_idx=0)
         
-        self.mb = 0.1
         self.ssl = 'us_x'
         self.aug_nce_fct = nn.CrossEntropyLoss()
         self.sem_aug_nce_fct = nn.CrossEntropyLoss()
         self.LayerNorm = torch.nn.LayerNorm(self.hidden_size, eps=1e-12)
-        self.dropout = torch.nn.Dropout(0.5)
-        self.mask_loss_weight = nn.Parameter(torch.FloatTensor([0.3]), requires_grad=True)
         self.attention_layernorms = torch.nn.ModuleList() # to be Q for self-attention
         self.attention_layers = torch.nn.ModuleList()
         self.forward_layernorms = torch.nn.ModuleList()
         self.forward_layers = torch.nn.ModuleList()
 
-        for _ in range(2):
-            new_attn_layernorm = torch.nn.LayerNorm(300, eps=1e-8)
+        for _ in range(config['n_layers']):
+            new_attn_layernorm = torch.nn.LayerNorm(self.hidden_size, eps=1e-8)
             self.attention_layernorms.append(new_attn_layernorm)
-            new_attn_layer =  torch.nn.MultiheadAttention(300,4,0.5)                                                               
+            new_attn_layer =  torch.nn.MultiheadAttention(self.hidden_size, config['n_heads'], config['hidden_dropout_prob'])                                                               
             self.attention_layers.append(new_attn_layer)
-            new_fwd_layernorm = torch.nn.LayerNorm(300, eps=1e-8)
+            new_fwd_layernorm = torch.nn.LayerNorm(self.hidden_size, eps=1e-8)
             self.forward_layernorms.append(new_fwd_layernorm)
-            new_fwd_layer = PointWiseFeedForward(300, 0.5)
+            new_fwd_layer = PointWiseFeedForward(self.hidden_size, config['hidden_dropout_prob'])
             self.forward_layers.append(new_fwd_layer) 
 
-        self.batch_size = 512
-        self.d = 3
-        self.knn_k = 10
-        self.bal = 5
-        self.miu_c = 0.3
-        self.miu_m = 2.5
         self.knn_k_co = self.knn_k // self.bal
         self.knn_k_ma = self.knn_k - self.knn_k_co
         self.image_embedding = (dataset.image_embedding).to(self.device)
@@ -207,9 +203,9 @@ class SGP(SequentialRecommender):
     
     def compute_max_similarity_index(self, j, i):
         similarity = torch.matmul(j, i.transpose(1, 2))
-        tensor_reshaped = similarity.view(-1, self.kk)  
+        tensor_reshaped = similarity.view(-1, self.means_k)  
         result_reshaped = F.gumbel_softmax(tensor_reshaped, tau=1, hard=False)
-        result = result_reshaped.view(j.shape[0], j.shape[1], self.kk)
+        result = result_reshaped.view(j.shape[0], j.shape[1], self.means_k)
         return result
 
     def calculate_loss(self, interaction):
