@@ -21,6 +21,7 @@ python run.py
   author={Li, Changhong and Guo, Zhiqiang and Li, Guohui and Yang, Zhong and Hong, Chuhang},
   booktitle={Proceedings of the 40th Annual AAAI Conference on Artificial Intelligence},
   volume={40},
+  number={18},
   pages={15054--15062},
   address={Singapore},
   year={2026},
